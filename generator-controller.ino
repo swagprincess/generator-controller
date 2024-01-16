@@ -70,7 +70,7 @@ WebServer server(100);
 
 
 void sendpage(){
-  server.send(200, "text/html", index_html.c_str());
+  server.send(200, "text/html", index_html);
 }
 
 void forcegenon(){
@@ -116,6 +116,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   server.begin();
+  server.enableDelay(true);
 
   previousMillis = millis();
 }
@@ -135,8 +136,7 @@ void loop() {
 
   if (recdata) {
 
-    index_html = "<!DOCTYPE HTML><html><head><meta http-equiv=\"refresh\" content=\"10\" ></head><body style=\"font-size:18px;\">\
-    Output Voltage: " + String(acvoltage) + "V<br>Output Frequency: " + String(acfrequency) + "Hz<br>Active Power: " + String(acpower) + "W<br>PV Power: " + String(pvpower) + "W<br>Battery Voltage: " + String(battvoltage) + "V<br>Battery Capacity: " + String(battcapacity) + "%<br>Battery Current: " + String(battcurrent) + "A (" + String(battchrgcurrentpvestimate) + "A PV, " + String(battchrgcurrentgridestimate) + "A Grid)<br>Generator Wanted: " + String(generatorwanted) + "<br>Generator Detected: " + String(generatordetected) + "<br><br>Generator Forced On: " + String(genforceon) + "<br>Generator Forced Off: " + String(genforceoff) + "</body></html>";
+    index_html = "<!DOCTYPE HTML><html><head><meta http-equiv=\"refresh\" content=\"10\" ></head><body style=\"font-size:18px;\">Output Voltage: " + String(acvoltage) + "V<br>Output Frequency: " + String(acfrequency) + "Hz<br>Active Power: " + String(acpower) + "W<br>PV Power: " + String(pvpower) + "W<br>Battery Voltage: " + String(battvoltage) + "V<br>Battery Capacity: " + String(battcapacity) + "%<br>Battery Current: " + String(battcurrent) + "A (" + String(battchrgcurrentpvestimate) + "A PV, " + String(battchrgcurrentgridestimate) + "A Grid)<br>Generator Wanted: " + String(generatorwanted) + "<br>Generator Detected: " + String(generatordetected) + "<br><br>Generator Forced On: " + String(genforceon) + "<br>Generator Forced Off: " + String(genforceoff) + "</body></html>";
     // im sorry
     if (!checkgenerator()){
       Serial.println("checkgenerator fail");
@@ -153,7 +153,7 @@ void loop() {
 
   server.handleClient();
 
-  delay(1);
+  delay(50);
 
 }
 
@@ -172,10 +172,10 @@ int checkgenerator() {
     setgenmillison = false;
   }
   
-  if (((battcapacity >= 25) || ((battcapacity >= 22) && (pvpower - acpower >= -50))) && (generatorwanted) && (!genforceon)) {
+  if (((battcapacity >= 25) || ((battcapacity >= 22) && (pvpower - acpower >= -150))) && (generatorwanted) && (!genforceon)) {
     if (!setgenmillisoff){
       previousGenMillisOff = millis();
-      setgenmillisoff = false;
+      setgenmillisoff = true;
     }
     if (millis() - previousGenMillisOff >= 60000){
       generatorwanted = false;
