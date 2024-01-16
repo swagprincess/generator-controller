@@ -1,7 +1,7 @@
 # Arduino code and schematics for my generator controller project
 
 
-Watch the video here: ww.youtube.com/watch?v=TC08VjSi0Rg
+Watch the video here: https://www.youtube.com/watch?v=TC08VjSi0Rg
 
 It's quite bad but I want it to be open source in case someone would like to recreate this project for their own solar system (and hopefully modify the code for themselves and not use it as is).
 
