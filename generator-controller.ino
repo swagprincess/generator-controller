@@ -4,19 +4,20 @@ const char* hostname = "generator-controller";
 
 IPAddress local_IP(192, 168, 50, 5);  
 IPAddress gateway(192, 168, 50, 1);   
-IPAddress subnet(255, 255, 255, 0);   
+IPAddress subnet(255, 255, 255, 0);
+IPAddress primaryDNS(192, 168, 50, 1);
 
-#include "WebServer.h"
+#include "WiFi.h"
 #include "esp_wifi.h"
+#include "Esp.h"
 
-String index_html;
-String message;
+char header[512];
 bool recdata = false;
 uint16_t crcfinal;
 int count = 0;
 int ind = 0;
-char tempchar[8];
-char response[256];
+char tempchar[20];
+char response[512];
 char responsechar;
 unsigned long previousMillis = 0;
 unsigned long previousMillisSerial = 0;
@@ -66,30 +67,11 @@ int pvpower1;
 int pvpower2;
 int pvpower;
 
-WebServer server(100);
+int heap;
 
 
-void sendpage(){
-  server.send(200, "text/html", index_html);
-}
+WiFiServer server(100);
 
-void forcegenon(){
-  server.send(200);
-  genforceon = true;
-  genforceoff = false;
-}
-
-void forcegenoff(){
-  server.send(200);
-  genforceon = false;
-  genforceoff = true;
-}
-
-void noforcegen(){
-  server.send(200);
-  genforceon = false;
-  genforceoff = false;
-}
 
 void setup() {
   
@@ -98,16 +80,12 @@ void setup() {
   Serial.begin(9600);
   Serial1.begin(2400, SERIAL_8N1, 17, 18);
 
-  server.on("/", sendpage);
-  server.on("/forcegenon", forcegenon);
-  server.on("/forcegenoff", forcegenoff);
-  server.on("/noforcegen", noforcegen);
-
-  WiFi.mode(WIFI_STA);
-  esp_wifi_set_ps (WIFI_PS_NONE);
-  WiFi.config(local_IP, gateway, subnet);  //comment out for DHCP
   WiFi.setHostname(hostname);
-
+  WiFi.config(local_IP, gateway, subnet, primaryDNS);  //comment out for DHCP
+  //esp_wifi_set_ps (WIFI_PS_NONE);
+  WiFi.mode(WIFI_STA);
+  
+  //WiFi.disconnect();
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
@@ -116,7 +94,6 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   server.begin();
-  server.enableDelay(true);
 
   previousMillis = millis();
 }
@@ -134,23 +111,88 @@ void loop() {
     previousMillis = millis();
   }
 
+
   if (recdata) {
 
-    index_html = "<!DOCTYPE HTML><html><head><meta http-equiv=\"refresh\" content=\"10\" ></head><body style=\"font-size:18px;\">Output Voltage: " + String(acvoltage) + "V<br>Output Frequency: " + String(acfrequency) + "Hz<br>Active Power: " + String(acpower) + "W<br>PV Power: " + String(pvpower) + "W<br>Battery Voltage: " + String(battvoltage) + "V<br>Battery Capacity: " + String(battcapacity) + "%<br>Battery Current: " + String(battcurrent) + "A (" + String(battchrgcurrentpvestimate) + "A PV, " + String(battchrgcurrentgridestimate) + "A Grid)<br>Generator Wanted: " + String(generatorwanted) + "<br>Generator Detected: " + String(generatordetected) + "<br><br>Generator Forced On: " + String(genforceon) + "<br>Generator Forced Off: " + String(genforceoff) + "</body></html>";
-    // im sorry
     if (!checkgenerator()){
       Serial.println("checkgenerator fail");
     }
     recdata = false;
   }
 
-  if (WiFi.status() != WL_CONNECTED && millis() - previousWifiMillis >= 10000) {
+  if (((WiFi.status() != WL_CONNECTED) || (WiFi.status() == 0) || (WiFi.status() == 5)) && millis() - previousWifiMillis >= 15000) {
     Serial.println("reconnecting to wifi...");
-    WiFi.reconnect();
-    previousWifiMillis = millis();
-  }
+    WiFi.disconnect();
+    WiFi.begin(ssid, password);
+  }else{
+    WiFiClient client = server.available();
+    if(client){
 
-  server.handleClient();
+      heap = ESP.getFreeHeap();
+
+      ind = 0;
+      while(client.available()) {
+        responsechar = client.read();
+        header[ind] = responsechar;
+        ind++;
+      }
+      client.println("HTTP/1.1 200 OK");
+      client.println("Content-type:text/html");
+      client.println("Connection: close");
+      client.println();
+      client.println("<!DOCTYPE HTML><html><head><meta http-equiv=\"refresh\" content=\"10\" ></head><body style=\"font-size:18px;\">Output Voltage:");
+      client.println(acvoltage);
+      client.println("V<br>Output Frequency: ");
+      client.println(acfrequency);
+      client.println("Hz<br>Active Power: ");
+      client.println(acpower);
+      client.println("W<br>PV Power: ");
+      client.println(pvpower);
+      client.println("W<br>Battery Voltage: ");
+      client.println(battvoltage);
+      client.println("V<br>Battery Capacity: ");
+      client.println(battcapacity);
+      client.println("%<br>Battery Current: ");
+      client.println(battcurrent);
+      client.println("A (");
+      client.println(battchrgcurrentpvestimate);
+      client.println("A PV, ");
+      client.println(battchrgcurrentgridestimate);
+      client.println("A Grid)<br>Generator Wanted: ");
+      client.println(generatorwanted);
+      client.println("<br>Generator Detected: ");
+      client.println(generatordetected);
+      client.println("<br><br>Generator Forced On: ");
+      client.println(genforceon);
+      client.println("<br>Generator Forced Off: ");
+      client.println(genforceoff);
+      client.println("<br><br>Free heap: ");
+      client.println(heap);
+      client.println("<br>Uptime: ");
+      client.println(roundf(esp_timer_get_time() / 3600000000.0 * 100) / 100);
+      client.println("H</body></html>");
+      client.println("");
+      client.stop();
+
+      if (strstr(header, "forcegenon") != NULL){
+        genforceon = true;
+        genforceoff = false;
+      }
+
+      if (strstr(header, "forcegenoff") != NULL){
+        genforceon = false;
+        genforceoff = true;
+      }
+
+      if (strstr(header, "noforcegen") != NULL){
+        genforceon = false;
+        genforceoff = false;
+      }
+
+      memset(header, 0, sizeof(header));
+
+    }
+  }
 
   delay(50);
 
@@ -171,7 +213,7 @@ int checkgenerator() {
     setgenmillison = false;
   }
   
-  if (((battcapacity >= 25) || ((battcapacity >= 22) && (pvpower - acpower >= -150))) && (generatorwanted) && (!genforceon)) {
+  if (((battcapacity >= 24) || ((battcapacity >= 22) && (pvpower - acpower >= -200))) && (generatorwanted) && (!genforceon)) {
     if (!setgenmillisoff){
       previousGenMillisOff = millis();
       setgenmillisoff = true;
@@ -190,17 +232,13 @@ int checkgenerator() {
       
       delay(5000);
 
-      message = "PBDV53.0";
-
-      if (query() == 0) {
+      if (query("PBDV53.0") == 0) {
         return 0;
       }
        
       delay(5000);
 
-      message = "PBCV51.0";
-
-      if (query() == 0) {
+      if (query("PBCV51.0") == 0) {
         return 0;
       }
 
@@ -220,17 +258,15 @@ int checkgenerator() {
     if ((!generatorsetoff) && (!genforceon)){
 
       delay(5000);
-      message = "PBCV47.0";
-      if (query() == 0) {
+
+      if (query("PBCV47.0") == 0) {
        return 0;
       }
 
       delay(5000);
-  
-      message = "PBDV48.0";
 
 
-      if (query() == 0) {
+      if (query("PBDV48.0") == 0) {
         return 0;
       }
 
@@ -250,9 +286,7 @@ return 1;
 
 int update() {
 
-  message = "QPIGS";
-
-  if (query() == 0) {
+  if (query("QPIGS") == 0) {
     return 0;
   }
 
@@ -294,10 +328,7 @@ int update() {
   pvpower1 = strtol(tempchar, NULL, 10);
 
 
-
-  message = "QPIGS2";
-
-  if (query() == 0) {
+  if (query("QPIGS2") == 0) {
     return 0;
   }
 
@@ -330,9 +361,14 @@ int update() {
   return 1;
 }
 
-int query() {
+int query(char *message) {
 
-  sendmessage();
+  crcfinal = cal_crc_half((uint8_t*)message, strlen(message));
+  Serial1.print(message);
+  Serial1.write(crcfinal >> 8);
+  Serial1.write(crcfinal & 0xff);
+  Serial1.print("\r");  //1
+
   previousMillisSerial = millis();
   while (!Serial1.available()) {  
     if (millis() - previousMillisSerial >= 5000) {
@@ -364,14 +400,6 @@ int query() {
   return 1;
 }
 
-
-void sendmessage() {
-  crcfinal = cal_crc_half((uint8_t*)message.c_str(), strlen(message.c_str()));
-  Serial1.print(message);
-  Serial1.write(crcfinal >> 8);
-  Serial1.write(crcfinal & 0xff);
-  Serial1.print("\r");  //1
-}
 
 
 
