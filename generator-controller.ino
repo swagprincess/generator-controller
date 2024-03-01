@@ -1,5 +1,5 @@
-const char* ssid = "";
-const char* password = "";
+const char* ssid = "sonpiris2";
+const char* password = "officeoffice";
 const char* hostname = "generator-controller";
 
 IPAddress local_IP(192, 168, 50, 5);  
@@ -24,6 +24,10 @@ unsigned long previousMillisSerial = 0;
 unsigned long previousWifiMillis = 0;
 unsigned long previousGenMillisOn = 0;
 unsigned long previousGenMillisOff = 0;
+
+unsigned long genOnMillis = 0;
+unsigned long totalGenOnHours = 0;
+
 
 uint16_t crc;
 
@@ -122,6 +126,7 @@ void loop() {
     Serial.println("reconnecting to wifi...");
     WiFi.disconnect();
     WiFi.begin(ssid, password);
+    previousWifiMillis = millis();
   }else{
     WiFiClient client = server.available();
     if(client){
@@ -138,7 +143,7 @@ void loop() {
       client.println("Content-type:text/html");
       client.println("Connection: close");
       client.println();
-      client.print("<!DOCTYPE HTML><html><head><meta http-equiv=\"refresh\" content=\"10\" ></head><body style=\"font-size:18px;\">Output Voltage:");
+      client.print("<!DOCTYPE HTML><html><head><meta http-equiv=\"refresh\" content=\"10\" ></head><body style=\"font-size:18px;\">Output Voltage: ");
       client.print(acvoltage);
       client.print(" V<br>Output Frequency: ");
       client.print(acfrequency);
@@ -152,15 +157,14 @@ void loop() {
       client.print(battcapacity);
       client.print(" %<br>Battery Current: ");
       client.print(battcurrent);
-      client.print(" A (");
-      client.print(battchrgcurrentpvestimate);
-      client.print(" A PV, ");
-      client.print(battchrgcurrentgridestimate);
-      client.print(" A Grid)<br>Generator Wanted: ");
+      client.print(" A");
+      client.print("<br>Generator Wanted: ");
       client.print(generatorwanted);
       client.print("<br>Generator Detected: ");
       client.print(generatordetected);
-      client.print("<br><br>Generator Forced On: ");
+      client.print("<br>Generator On Time: ");
+      client.print(roundf(totalGenOnHours * 100) / 100);
+      client.print(" H<br><br>Generator Forced On: ");
       client.print(genforceon);
       client.print("<br>Generator Forced Off: ");
       client.print(genforceoff);
@@ -211,7 +215,7 @@ int checkgenerator() {
     setgenmillison = false;
   }
   
-  if (((battcapacity >= 24) || ((battcapacity >= 22) && (pvpower - acpower >= -200))) && (generatorwanted) && (!genforceon)) {
+  if (((generatorwanted) && (!genforceon)) && (millis() - genOnMillis >= 1200000)) {
     if (!setgenmillisoff){
       previousGenMillisOff = millis();
       setgenmillisoff = true;
@@ -249,6 +253,8 @@ int checkgenerator() {
 
       previousMillis = millis();
 
+      genOnMillis = millis();
+
     }
   }
 
@@ -276,6 +282,10 @@ int checkgenerator() {
       generatorseton = false;
 
       previousMillis = millis();
+
+      totalGenOnHours = (totalGenOnHours + (genOnMillis / 3600000));
+
+      genOnMillis = 0;
 
     }
   }
@@ -345,15 +355,6 @@ int update() {
     generatordetected = 0;
   }
 
-  if (generatordetected == 0) {
-    battchrgcurrentpvestimate = battchrgcurrent;
-    battchrgcurrentgridestimate = 0;
-  }
-
-  if (generatordetected == 1) {
-    battchrgcurrentpvestimate = pvpower / battvoltage;          
-    battchrgcurrentgridestimate = battchrgcurrent - battchrgcurrentpvestimate; 
-  }
 
 
   return 1;
