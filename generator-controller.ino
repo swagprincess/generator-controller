@@ -1,5 +1,5 @@
-const char* ssid = "sonpiris2";
-const char* password = "officeoffice";
+const char* ssid = "";
+const char* password = "";
 const char* hostname = "generator-controller";
 
 IPAddress local_IP(192, 168, 50, 5);  
