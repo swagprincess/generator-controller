@@ -299,39 +299,39 @@ int update() {
   }
 
 
-  memcpy(tempchar, &response[1], 5);
+  memcpy(tempchar, response+1, 5);
   tempchar[5] = '\0';
   genvoltage = strtof(tempchar, NULL);
 
-  memcpy(tempchar, &response[12], 16);
+  memcpy(tempchar, response+12, 5);
   tempchar[5] = '\0';
   acvoltage = strtof(tempchar, NULL);
 
-  memcpy(tempchar, &response[18], 21);
+  memcpy(tempchar, response+18, 4);
   tempchar[4] = '\0';
   acfrequency = strtof(tempchar, NULL);
 
-  memcpy(tempchar, &response[28], 31);
+  memcpy(tempchar, response+28, 4);
   tempchar[4] = '\0';
   acpower = strtol(tempchar, NULL, 10);
 
-  memcpy(tempchar, &response[41], 45);
+  memcpy(tempchar, response+41, 5);
   tempchar[5] = '\0';
   battvoltage = strtof(tempchar, NULL);
 
-  memcpy(tempchar, &response[47], 49);
+  memcpy(tempchar, response+47, 3);
   tempchar[3] = '\0';
   battchrgcurrent = strtol(tempchar, NULL, 10);
 
-  memcpy(tempchar, &response[51], 53);
+  memcpy(tempchar, response+51, 3);
   tempchar[3] = '\0';
   battcapacity = strtol(tempchar, NULL, 10);
 
-  memcpy(tempchar, &response[80], 84);
+  memcpy(tempchar, response+80, 5);
   tempchar[5] = '\0';
   battdischrgcurrent = strtol(tempchar, NULL, 10);
 
-  memcpy(tempchar, &response[99], 104);
+  memcpy(tempchar, response+99, 5);
   tempchar[5] = '\0';
   pvpower1 = strtol(tempchar, NULL, 10);
 
@@ -340,7 +340,7 @@ int update() {
     return 0;
   }
 
-  memcpy(tempchar, &response[12], 16);
+  memcpy(tempchar, response+12, 5);
   tempchar[5] = '\0';
   pvpower2 = strtol(tempchar, NULL, 10);
 
