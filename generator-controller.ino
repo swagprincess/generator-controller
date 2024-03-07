@@ -172,7 +172,7 @@ void loop() {
       client.print(heap);
       client.print("<br>Uptime: ");
       client.print(roundf(esp_timer_get_time() / 3600000000.0 * 100) / 100);
-      client.print("H</body></html>");
+      client.print(" H</body></html>");
       client.println("");
       client.stop();
 
