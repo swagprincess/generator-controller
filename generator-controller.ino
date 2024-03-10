@@ -8,7 +8,6 @@ IPAddress subnet(255, 255, 255, 0);
 IPAddress primaryDNS(192, 168, 50, 1);
 
 #include "WiFi.h"
-#include "esp_wifi.h"
 #include "Esp.h"
 
 char header[512];
@@ -26,7 +25,9 @@ unsigned long previousGenMillisOn = 0;
 unsigned long previousGenMillisOff = 0;
 
 unsigned long genOnMillis = 0;
-unsigned long totalGenOnHours = 0;
+unsigned long previousGenUpdateHoursMillis = 0;
+float totalGenOnHours = 0;
+float uptime = 0;
 
 
 uint16_t crc;
@@ -131,7 +132,16 @@ void loop() {
     WiFiClient client = server.available();
     if(client){
 
-      heap = ESP.getFreeHeap();
+      uptime = roundf(esp_timer_get_time() / 3600000000.0 * 100) / 100;
+
+      if(generatordetected){
+        if (previousGenUpdateHoursMillis == 0){
+          previousGenUpdateHoursMillis = millis();
+        }
+        totalGenOnHours = totalGenOnHours + (millis() - previousGenUpdateHoursMillis) / 3600000.0;
+        previousGenUpdateHoursMillis = millis();
+      }
+
 
       ind = 0;
       while(client.available()) {
@@ -139,11 +149,13 @@ void loop() {
         header[ind] = responsechar;
         ind++;
       }
+      client.flush();
+
       client.println("HTTP/1.1 200 OK");
       client.println("Content-type:text/html");
       client.println("Connection: close");
       client.println();
-      client.print("<!DOCTYPE HTML><html><head><meta http-equiv=\"refresh\" content=\"10\" ></head><body style=\"font-size:18px;\">Output Voltage: ");
+      client.print("<!DOCTYPE HTML><html><head><meta http-equiv=\"refresh\" content=\"10\"></head><body style=\"font-size:18px;\">Output Voltage: ");
       client.print(acvoltage);
       client.print(" V<br>Output Frequency: ");
       client.print(acfrequency);
@@ -163,15 +175,13 @@ void loop() {
       client.print("<br>Generator Detected: ");
       client.print(generatordetected);
       client.print("<br>Generator On Time: ");
-      client.print(roundf(totalGenOnHours * 100) / 100);
+      client.print(totalGenOnHours);
       client.print(" H<br><br>Generator Forced On: ");
       client.print(genforceon);
       client.print("<br>Generator Forced Off: ");
       client.print(genforceoff);
-      client.print("<br><br>Free heap: ");
-      client.print(heap);
-      client.print("<br>Uptime: ");
-      client.print(roundf(esp_timer_get_time() / 3600000000.0 * 100) / 100);
+      client.print("<br><br>Uptime: ");
+      client.print(uptime);
       client.print(" H</body></html>");
       client.println("");
       client.stop();
@@ -283,8 +293,6 @@ int checkgenerator() {
 
       previousMillis = millis();
 
-      totalGenOnHours = (totalGenOnHours + (genOnMillis / 3600000));
-
       genOnMillis = 0;
 
     }
@@ -349,6 +357,8 @@ int update() {
 
   pvpower = pvpower1 + pvpower2;
 
+  
+
   if (genvoltage >= 180.00) {
     generatordetected = 1;
   } else {
@@ -366,7 +376,7 @@ int query(char *message) {
   Serial1.print(message);
   Serial1.write(crcfinal >> 8);
   Serial1.write(crcfinal & 0xff);
-  Serial1.print("\r");  //1
+  Serial1.print("\r");
 
   previousMillisSerial = millis();
   while (!Serial1.available()) {  
