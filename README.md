@@ -7,7 +7,6 @@ The PCB and schematic are in Easy EDA format, you can import them into there to 
 
 CRC generation code from https://github.com/manio/skymax-demo
 
-If you would like to know anything more about this, I would love to answer your questions, you can contact me on discord (xlucyz)
 
 <img src="images/silkscreen.jpg" alt="" width="500"/>
 <img src="images/silkscreen1.jpg" alt="" width="500"/>
