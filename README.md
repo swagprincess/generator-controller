@@ -1,4 +1,4 @@
-# Arduino code and schematics for my generator controller project
+# Code and schematics for my generator controller project
 
 
 
